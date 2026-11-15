@@ -1,7 +1,7 @@
-"""Optional Gemini integration for free-text questions.
+"""Optional AI (OpenAI or Gemini) for free-text questions.
 
-The rule-based assistant always works; Gemini only adds plain-language answers
-when GEMINI_API_KEY is configured. The model never sees emails, care codes or
+The rule-based assistant always works; an AI model only adds plain-language
+answers when OPENAI_API_KEY or GEMINI_API_KEY is configured. The model never sees emails, care codes or
 passcodes, and is instructed never to change doses or diagnose.
 """
 
@@ -56,7 +56,7 @@ class GeminiAssistant:
                 ),
             )
         except errors.APIError as exc:
-            logger.warning("Gemini request failed: %s", exc)
+            logger.warning("Gemini request failed: %s", type(exc).__name__)
             raise AIUnavailableError("The assistant is unavailable right now.") from exc
         text = (response.text or "").strip()
         if not text:
@@ -64,5 +64,38 @@ class GeminiAssistant:
         return text
 
 
-def build_assistant(api_key: str | None, model: str) -> AssistantModel | None:
-    return GeminiAssistant(api_key, model) if api_key else None
+class OpenAIAssistant:
+    def __init__(self, api_key: str, model: str) -> None:
+        from openai import OpenAI  # Imported lazily so the app starts fast without AI.
+
+        self._client = OpenAI(api_key=api_key, timeout=30.0, max_retries=1)
+        self._model = model
+
+    def answer(self, question: str, context: str) -> str:
+        import openai
+
+        try:
+            response = self._client.responses.create(
+                model=self._model,
+                instructions=SYSTEM_INSTRUCTION,
+                input=f"Care context:\n{context}\n\nQuestion:\n{question}",
+                max_output_tokens=1500,
+            )
+        except openai.APIError as exc:
+            logger.warning("OpenAI request failed: %s", type(exc).__name__)
+            raise AIUnavailableError("The assistant is unavailable right now.") from exc
+        text = (response.output_text or "").strip()
+        if not text:
+            raise AIUnavailableError("The assistant could not answer that. Please rephrase.")
+        return text
+
+
+def build_assistant(
+    openai_key: str | None, openai_model: str, gemini_key: str | None, gemini_model: str
+) -> AssistantModel | None:
+    """OpenAI if its key is set, otherwise Gemini, otherwise no AI (rules still work)."""
+    if openai_key:
+        return OpenAIAssistant(openai_key, openai_model)
+    if gemini_key:
+        return GeminiAssistant(gemini_key, gemini_model)
+    return None

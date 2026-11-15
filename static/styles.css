@@ -240,3 +240,4 @@ dd { margin: 0; }
 details { margin: 0.25rem 0 0.75rem; }
 summary { cursor: pointer; color: var(--brand); font-weight: 600; min-height: 32px; }
 .answer { white-space: pre-wrap; }
+.card .row > h2, .card .row > h3 { margin: 0; }

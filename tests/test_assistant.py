@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.main import create_app
 from app.services import assistant, schedule
-from app.services.ai import AIUnavailableError
+from app.services.ai import AIUnavailableError, GeminiAssistant, OpenAIAssistant, build_assistant
 from tests.conftest import ELDER, MED, add_member, make_settings
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -293,3 +293,23 @@ def test_family_sees_family_wording(app, owner):
     family = add_member(c, app, "family", "son@example.com")
     first = family.get("/api/assistant").json()["insights"][0]
     assert first["title"] == "Kamala may have missed a dose"
+
+
+def test_ai_provider_selection():
+    assert build_assistant(None, "m", None, "g") is None
+    assert isinstance(build_assistant("sk-test", "gpt-5.4-mini", "g-key", "g"), OpenAIAssistant)
+    assert isinstance(build_assistant(None, "m", "g-key", "gemini-3.5-flash"), GeminiAssistant)
+
+
+def test_openai_errors_become_friendly_message():
+    import httpx
+    import openai
+
+    model = OpenAIAssistant("sk-test", "gpt-5.4-mini")
+
+    def boom(**_kwargs):
+        raise openai.APIConnectionError(request=httpx.Request("POST", "https://api.openai.com/v1/responses"))
+
+    model._client.responses.create = boom
+    with pytest.raises(AIUnavailableError):
+        model.answer("Is this ok?", "context")

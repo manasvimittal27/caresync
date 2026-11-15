@@ -64,7 +64,13 @@ def create_app(
     app.state.clock = clock or utc_now
     app.state.sessions = SessionManager(settings.session_secret, settings.session_max_age_seconds)
     app.state.login_limiter = RateLimiter(settings.login_max_attempts, settings.login_window_seconds)
-    app.state.ai = ai if ai is not None else build_assistant(settings.gemini_api_key, settings.gemini_model)
+    app.state.ai = (
+        ai
+        if ai is not None
+        else build_assistant(
+            settings.openai_api_key, settings.openai_model, settings.gemini_api_key, settings.gemini_model
+        )
+    )
     app.state.ai_limiter = RateLimiter(max_attempts=10, window_seconds=600)  # 10 questions / 10 min each
 
     @app.middleware("http")
