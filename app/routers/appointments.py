@@ -96,12 +96,8 @@ def update_appointment(
     clock: Clock = Depends(get_clock),
 ) -> dict:
     _get_or_404(repo, actor.elder_id, appt_id)
-    # A changed time must trigger fresh reminders, so clear the sent-reminder markers.
-    repo.update(
-        paths.appointments(actor.elder_id),
-        appt_id,
-        {**_serialise(body, actor.elder["timezone"]), "reminders_sent": []},
-    )
+    # Reminder ids include the start time, so a rescheduled appointment gets fresh reminders.
+    repo.update(paths.appointments(actor.elder_id), appt_id, _serialise(body, actor.elder["timezone"]))
     audit.record(
         repo,
         actor.elder_id,

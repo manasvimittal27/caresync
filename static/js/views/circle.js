@@ -3,7 +3,7 @@ import { confirmAction, field, h, mount, onSubmit, toast } from "../dom.js";
 import { ROLE_LABELS, elder, isOwner, state } from "../state.js";
 
 export async function renderCircle(view, rerender) {
-  const members = await api("/api/members");
+  const [members, email] = await Promise.all([api("/api/members"), api("/api/notifications/status")]);
   const inviteSlot = h("div", { "aria-live": "polite" });
   const me = state.me.member;
 
@@ -18,6 +18,7 @@ export async function renderCircle(view, rerender) {
         : `${elder().name} decides who is in this care circle.`,
     ),
     isOwner() ? ownerPanel(rerender) : null,
+    isOwner() ? emailPanel(email.email_enabled) : null,
     h(
       "section",
       { "aria-labelledby": "members-title" },
@@ -65,6 +66,34 @@ function ownerPanel(rerender) {
       toggle,
       "Ask me to approve medicine changes made by caretakers",
     ),
+  );
+}
+
+function emailPanel(enabled) {
+  const sendTest = async (e) => {
+    e.target.disabled = true;
+    try {
+      const res = await api("/api/notifications/test", { method: "POST" });
+      toast(`Test email sent to ${res.to}. Check your inbox.`);
+    } catch (err) {
+      toast(err.message, { error: true });
+    } finally {
+      e.target.disabled = false;
+    }
+  };
+  return h(
+    "section",
+    { class: "card stack", "aria-labelledby": "email-title" },
+    h("h2", { id: "email-title" }, "Email reminders"),
+    enabled
+      ? h(
+          "p",
+          {},
+          "On. Everyone in the circle is emailed about upcoming doses, missed doses (family and caretakers) " +
+            "and appointments (a day before and 2 hours before).",
+        )
+      : h("p", { class: "meta" }, "Email is not set up for this app yet, so reminders are shown in the app only."),
+    enabled ? h("button", { type: "button", class: "btn-secondary", onclick: sendTest }, "Send me a test email") : null,
   );
 }
 
@@ -142,14 +171,20 @@ function addMemberForm(inviteSlot, rerender) {
   return h("section", { class: "card" }, form);
 }
 
-function showInvite(slot, { member, passcode, care_code: careCode }) {
+function showInvite(slot, { member, passcode, care_code: careCode, emailed }) {
   mount(
     slot,
     h(
       "section",
       { class: "card highlight stack", tabindex: "-1", "aria-labelledby": "invite-done" },
       h("h2", { id: "invite-done" }, `${member.name} has been added`),
-      h("p", {}, "Share these sign-in details privately. The passcode is shown only once."),
+      h(
+        "p",
+        {},
+        emailed
+          ? `We've emailed these sign-in details to ${member.email}. The passcode is shown here only once.`
+          : "Share these sign-in details privately. The passcode is shown only once.",
+      ),
       h(
         "dl",
         {},

@@ -1,6 +1,6 @@
 """Care circle management. Only the elder (profile owner) can add or remove people."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 
 from app.clock import Clock, to_iso_utc
 from app.config import Settings
@@ -10,6 +10,7 @@ from app.deps import Actor, any_member, get_clock, get_repo, get_settings_dep, o
 from app.schemas import MemberCreate, SettingsUpdate
 from app.security import generate_passcode, hash_passcode
 from app.services import audit
+from app.services.reminders import invite_email
 from app.views import public_elder, public_member
 
 router = APIRouter(prefix="/api", tags=["care circle"])
@@ -51,6 +52,8 @@ def list_members(actor: Actor = Depends(any_member), repo: Repository = Depends(
 @router.post("/members", status_code=status.HTTP_201_CREATED)
 def add_member(
     body: MemberCreate,
+    request: Request,
+    background: BackgroundTasks,
     actor: Actor = Depends(owner_only),
     repo: Repository = Depends(get_repo),
     settings: Settings = Depends(get_settings_dep),
@@ -85,11 +88,19 @@ def add_member(
         clock(),
         member_id,
     )
-    # The passcode is shown once to the owner (and emailed in a later phase); only its hash is stored.
+    # The passcode is shown once to the owner and emailed to the new member; only its hash is stored.
+    emailer = request.app.state.emailer
+    background.add_task(
+        emailer.send,
+        invite_email(
+            body.name, actor.elder["name"], actor.elder["care_code"], body.email, passcode, settings.app_url
+        ),
+    )
     return {
         "member": public_member(repo.get(path, member_id)),
         "passcode": passcode,
         "care_code": actor.elder["care_code"],
+        "emailed": emailer.enabled,
     }
 
 

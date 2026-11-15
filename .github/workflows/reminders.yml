@@ -1,0 +1,26 @@
+# Triggers CareSync's reminder run every 15 minutes (upcoming doses, missed-dose
+# alerts, appointment reminders). Set repository variable CARESYNC_URL and secret
+# CRON_SECRET in GitHub: Settings > Secrets and variables > Actions.
+name: Reminders
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  run:
+    if: ${{ vars.CARESYNC_URL != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger reminder run
+        env:
+          URL: ${{ vars.CARESYNC_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        # Retries cover a sleeping free-tier server waking up.
+        run: >
+          curl -fsS --retry 3 --retry-delay 20 --max-time 120
+          -X POST "$URL/internal/run-reminders"
+          -H "X-Cron-Secret: $CRON_SECRET"

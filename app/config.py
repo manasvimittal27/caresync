@@ -26,6 +26,13 @@ class Settings:
     openai_model: str = "gpt-5.4-mini"
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-3.5-flash"
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 465
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    cron_secret: str | None = None
+    app_url: str = "http://localhost:8000"
+    reminder_lead_minutes: int = 15
 
     @property
     def is_production(self) -> bool:
@@ -64,6 +71,14 @@ def load_settings() -> Settings:
         openai_model=os.getenv("OPENAI_MODEL", "gpt-5.4-mini"),
         gemini_api_key=os.getenv("GEMINI_API_KEY") or None,
         gemini_model=os.getenv("GEMINI_MODEL", "gemini-3.5-flash"),
+        smtp_host=os.getenv("SMTP_HOST", "smtp.gmail.com"),
+        smtp_port=_int("SMTP_PORT", 465),
+        smtp_user=os.getenv("SMTP_USER") or None,
+        smtp_password=(os.getenv("SMTP_PASSWORD") or "").replace(" ", "")
+        or None,  # Gmail shows it in groups.
+        cron_secret=os.getenv("CRON_SECRET") or None,
+        app_url=os.getenv("APP_URL", "http://localhost:8000").rstrip("/"),
+        reminder_lead_minutes=_int("REMINDER_LEAD_MINUTES", 15),
     )
 
 

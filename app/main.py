@@ -9,9 +9,10 @@ from fastapi.staticfiles import StaticFiles
 from app.clock import Clock, utc_now
 from app.config import Settings, get_settings
 from app.db.base import Repository
-from app.routers import activity, appointments, assistant, auth, doses, medications, members
+from app.routers import activity, appointments, assistant, auth, doses, medications, members, notifications
 from app.security import RateLimiter, SessionManager
 from app.services.ai import AssistantModel, build_assistant
+from app.services.emailer import Emailer, build_emailer
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
@@ -47,6 +48,7 @@ def create_app(
     repo: Repository | None = None,
     clock: Clock | None = None,
     ai: AssistantModel | None = None,
+    emailer: Emailer | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
@@ -72,6 +74,9 @@ def create_app(
         )
     )
     app.state.ai_limiter = RateLimiter(max_attempts=10, window_seconds=600)  # 10 questions / 10 min each
+    app.state.emailer = emailer or build_emailer(
+        settings.smtp_host, settings.smtp_port, settings.smtp_user, settings.smtp_password
+    )
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next) -> Response:
@@ -88,7 +93,7 @@ def create_app(
     def health() -> dict:
         return {"status": "ok"}
 
-    for module in (auth, members, medications, doses, appointments, activity, assistant):
+    for module in (auth, members, medications, doses, appointments, activity, assistant, notifications):
         app.include_router(module.router)
 
     if STATIC_DIR.joinpath("index.html").exists():

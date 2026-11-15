@@ -2,7 +2,7 @@
 
 Shared elderly care and medication management. One health profile, owned by the elderly person, shared with caretakers and family through secure passcode-based access.
 
-> Status: core platform, accessible web app and Smart Care Assistant complete. Email reminders and deployment follow.
+> Status: core platform, accessible web app, Smart Care Assistant and email reminders complete. Deployment follows.
 
 ## Features so far
 
@@ -15,6 +15,7 @@ Shared elderly care and medication management. One health profile, owned by the 
 - **Doses:** today's checklist (`upcoming` / `due` / `overdue` / `taken` / `skipped`), idempotent dose logging, adherence % over N days.
 - **Appointments:** CRUD with a one-click "Add to Google Calendar" link.
 - **Activity log:** every change records who did what, and when.
+- **Email reminders:** every 15 minutes a scheduled job (GitHub Actions → `POST /internal/run-reminders`, protected by a secret header) emails upcoming-dose reminders to the elder and caretakers, records doses not taken within 30 minutes as *missed* and alerts family and caretakers, and sends appointment reminders 24 h and 2 h before. Each notification is recorded so nothing is sent twice, failed sends are retried, rescheduled appointments get fresh reminders, and doses due before a medicine was added never count as missed. New members receive their sign-in details by email.
 - **Elder-friendly web app:** large text with A / A+ / A++ sizing, high contrast, 48px+ touch targets, big "I took it" buttons, read-aloud of today's medicines, full keyboard support, skip link, screen-reader announcements and focus management. No build step: plain HTML, CSS and ES modules.
 
 ## Run locally
@@ -24,7 +25,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 uvicorn app.main:app --reload        # in-memory database by default
 # App: http://localhost:8000   API docs: http://localhost:8000/docs
-python -m pytest                      # 108 tests
+python -m pytest                      # 125 tests
 ruff check app tests
 ```
 
@@ -41,6 +42,9 @@ ruff check app tests
 | `OPENAI_MODEL` | OpenAI model id | `gpt-5.4-mini` |
 | `GEMINI_API_KEY` | Optional: alternative AI provider (Google AI Studio key) | unset |
 | `GEMINI_MODEL` | Gemini model id | `gemini-3.5-flash` |
+| `SMTP_USER` / `SMTP_PASSWORD` | Gmail address and App Password for sending email | unset (emails logged, not sent) |
+| `CRON_SECRET` | Shared secret the scheduler sends in `X-Cron-Secret` | unset (reminder endpoint disabled) |
+| `APP_URL` | Public URL used in invite emails | `http://localhost:8000` |
 
 ## Project layout
 
@@ -52,8 +56,9 @@ app/
   deps.py          auth + role guards
   schemas.py       validated request models
   db/              repository interface, Firestore + in-memory implementations
-  services/        assistant (decision engine), ai (OpenAI / Gemini), schedule/adherence, audit log, calendar links
+  services/        assistant (decision engine), reminders + emailer, ai (OpenAI / Gemini), schedule/adherence, audit log, calendar links
   routers/         auth, members, medications, doses, appointments, activity
 static/            web app: index.html, styles.css, app.js (router), js/ (api, dom, views)
+.github/workflows CI (lint + tests on every push) and the 15-minute reminder scheduler
 tests/             pytest suite (in-memory DB, frozen clock, front-end safety checks)
 ```
