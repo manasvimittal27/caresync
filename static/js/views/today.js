@@ -2,6 +2,7 @@ import { api } from "../api.js";
 import { h, mount, toast } from "../dom.js";
 import { formatDateTime, formatTime, longToday, partOfDay } from "../format.js";
 import { canEdit, elder, isOwner } from "../state.js";
+import { insightList } from "./assistant.js";
 
 const STATUS_LABELS = {
   upcoming: "Coming up",
@@ -14,14 +15,12 @@ const STATUS_LABELS = {
 
 export async function renderToday(view, rerender) {
   const tz = elder().timezone;
-  const [today, adherence, appointments, medicines] = await Promise.all([
+  const [today, adherence, appointments, insights] = await Promise.all([
     api("/api/doses/today"),
     api("/api/adherence?days=7"),
     api("/api/appointments"),
-    isOwner() ? api("/api/medications") : Promise.resolve([]),
+    api("/api/assistant"),
   ]);
-
-  const pending = medicines.filter((m) => m.status === "pending");
   const title = isOwner()
     ? `Good ${partOfDay(tz)}, ${elder().name.split(" ")[0]}`
     : `${elder().name}'s day`;
@@ -32,14 +31,7 @@ export async function renderToday(view, rerender) {
     view,
     h("h1", {}, title),
     h("p", { class: "meta" }, longToday(tz)),
-    pending.length
-      ? h(
-          "p",
-          { class: "notice" },
-          `${pending.length} medicine change${pending.length > 1 ? "s" : ""} need your approval. `,
-          h("a", { href: "#/medicines" }, "Review now"),
-        )
-      : null,
+    assistantPanel(insights),
     adherenceCard(adherence),
     h(
       "section",
@@ -60,6 +52,20 @@ export async function renderToday(view, rerender) {
           ),
     ),
     nextAppointment(appointments[0], tz),
+  );
+}
+
+function assistantPanel(data) {
+  const top = data.insights.slice(0, 3);
+  return h(
+    "section",
+    { class: "card assistant-panel", "aria-labelledby": "assistant-title" },
+    h("h2", { id: "assistant-title" }, "Your care assistant"),
+    h("p", { class: "headline", role: "status" }, data.headline),
+    insightList(top),
+    data.insights.length > top.length
+      ? h("a", { href: "#/assistant" }, `See all ${data.insights.length} suggestions`)
+      : h("a", { href: "#/assistant" }, "Open the care assistant"),
   );
 }
 

@@ -22,6 +22,8 @@ class Settings:
     login_max_attempts: int
     login_window_seconds: int
     pbkdf2_iterations: int
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-3.5-flash"
 
     @property
     def is_production(self) -> bool:
@@ -56,6 +58,8 @@ def load_settings() -> Settings:
         login_max_attempts=_int("LOGIN_MAX_ATTEMPTS", 5),
         login_window_seconds=_int("LOGIN_WINDOW_SECONDS", 15 * 60),
         pbkdf2_iterations=_int("PBKDF2_ITERATIONS", 210_000),
+        gemini_api_key=os.getenv("GEMINI_API_KEY") or None,
+        gemini_model=os.getenv("GEMINI_MODEL", "gemini-3.5-flash"),
     )
 
 

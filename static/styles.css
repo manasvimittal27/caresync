@@ -224,3 +224,19 @@ dd { margin: 0; }
 [hidden] { display: none !important; }
 .welcome-grid { align-items: start; }
 .welcome-grid > .card + .card { margin-top: 0; }
+
+/* ---------- Care assistant ---------- */
+.headline { font-size: 1.25em; font-weight: 700; color: var(--brand-dark); margin: 0.25rem 0 1rem; }
+.assistant-panel { border-color: var(--brand); border-width: 3px; margin-bottom: 1rem; }
+.insight { border-left-width: 8px; }
+.insight-urgent { border-left-color: var(--danger); }
+.insight-high { border-left-color: var(--warn); }
+.insight-medium { border-left-color: var(--brand); }
+.insight-low { border-left-color: var(--ok); }
+.badge-prio-urgent { background: var(--danger-tint); color: var(--danger); }
+.badge-prio-high { background: var(--warn-tint); color: var(--warn); }
+.badge-prio-medium { background: var(--brand-tint); color: var(--brand-dark); }
+.badge-prio-low { background: var(--ok-tint); color: var(--ok); }
+details { margin: 0.25rem 0 0.75rem; }
+summary { cursor: pointer; color: var(--brand); font-weight: 600; min-height: 32px; }
+.answer { white-space: pre-wrap; }

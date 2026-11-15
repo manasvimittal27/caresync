@@ -5,6 +5,7 @@ import { h, mount, toast } from "./js/dom.js";
 import { ROLE_LABELS, state } from "./js/state.js";
 import { renderActivity } from "./js/views/activity.js";
 import { renderAppointments } from "./js/views/appointments.js";
+import { renderAssistant } from "./js/views/assistant.js";
 import { renderCircle } from "./js/views/circle.js";
 import { renderMedicines } from "./js/views/medicines.js";
 import { renderToday } from "./js/views/today.js";
@@ -12,6 +13,7 @@ import { renderWelcome } from "./js/views/welcome.js";
 
 const ROUTES = {
   today: { title: "Today", render: renderToday },
+  assistant: { title: "Care assistant", render: renderAssistant },
   medicines: { title: "Medicines", render: renderMedicines },
   appointments: { title: "Appointments", render: renderAppointments },
   circle: { title: "Care circle", render: renderCircle },

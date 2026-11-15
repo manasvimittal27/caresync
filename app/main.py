@@ -9,8 +9,9 @@ from fastapi.staticfiles import StaticFiles
 from app.clock import Clock, utc_now
 from app.config import Settings, get_settings
 from app.db.base import Repository
-from app.routers import activity, appointments, auth, doses, medications, members
+from app.routers import activity, appointments, assistant, auth, doses, medications, members
 from app.security import RateLimiter, SessionManager
+from app.services.ai import AssistantModel, build_assistant
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
@@ -45,6 +46,7 @@ def create_app(
     settings: Settings | None = None,
     repo: Repository | None = None,
     clock: Clock | None = None,
+    ai: AssistantModel | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
@@ -62,6 +64,8 @@ def create_app(
     app.state.clock = clock or utc_now
     app.state.sessions = SessionManager(settings.session_secret, settings.session_max_age_seconds)
     app.state.login_limiter = RateLimiter(settings.login_max_attempts, settings.login_window_seconds)
+    app.state.ai = ai if ai is not None else build_assistant(settings.gemini_api_key, settings.gemini_model)
+    app.state.ai_limiter = RateLimiter(max_attempts=10, window_seconds=600)  # 10 questions / 10 min each
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next) -> Response:
@@ -78,7 +82,7 @@ def create_app(
     def health() -> dict:
         return {"status": "ok"}
 
-    for module in (auth, members, medications, doses, appointments, activity):
+    for module in (auth, members, medications, doses, appointments, activity, assistant):
         app.include_router(module.router)
 
     if STATIC_DIR.joinpath("index.html").exists():
