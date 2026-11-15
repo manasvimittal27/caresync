@@ -2,7 +2,7 @@
 
 Shared elderly care and medication management. One health profile, owned by the elderly person, shared with caretakers and family through secure passcode-based access.
 
-> Status: core platform, accessible web app, Smart Care Assistant and email reminders complete. Deployment follows.
+> Status: feature-complete and deployable (Render + Supabase Postgres).
 
 ## Features so far
 
@@ -25,7 +25,8 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 uvicorn app.main:app --reload        # in-memory database by default
 # App: http://localhost:8000   API docs: http://localhost:8000/docs
-python -m pytest                      # 125 tests
+python -m pytest                      # 137 tests (in-memory store)
+TEST_DATABASE_URL=postgresql://... python -m pytest   # same suite on real Postgres
 ruff check app tests
 ```
 
@@ -35,7 +36,8 @@ ruff check app tests
 |---|---|---|
 | `APP_ENV` | `local`, `test` or `prod` | `local` |
 | `SESSION_SECRET` | Cookie signing key (required in prod) | random per process |
-| `DB_BACKEND` | `memory` or `firestore` | `firestore` in prod |
+| `DATABASE_URL` | PostgreSQL connection string (Supabase session pooler) | unset |
+| `DB_BACKEND` | `memory`, `postgres` or `firestore` | `postgres` if `DATABASE_URL` is set, else `memory` |
 | `GCP_PROJECT` | Google Cloud project id | from environment |
 | `DOSE_GRACE_MINUTES` | Minutes before a dose counts as overdue | `30` |
 | `OPENAI_API_KEY` | Optional: enables free-text questions via OpenAI (preferred if set) | unset |
@@ -55,10 +57,18 @@ app/
   security.py      passcode hashing, sessions, rate limiting
   deps.py          auth + role guards
   schemas.py       validated request models
-  db/              repository interface, Firestore + in-memory implementations
+  db/              repository interface; Postgres, Firestore and in-memory implementations
   services/        assistant (decision engine), reminders + emailer, ai (OpenAI / Gemini), schedule/adherence, audit log, calendar links
   routers/         auth, members, medications, doses, appointments, activity
 static/            web app: index.html, styles.css, app.js (router), js/ (api, dom, views)
 .github/workflows CI (lint + tests on every push) and the 15-minute reminder scheduler
 tests/             pytest suite (in-memory DB, frozen clock, front-end safety checks)
 ```
+
+## Deploy (Render + Supabase)
+
+1. **Database:** a Supabase Postgres project with the `documents` table (the app also creates it on start). Row-level security is enabled with no policies, so Supabase's public API cannot read data; only the server connection can. Copy the **Session pooler** connection string from Supabase → *Connect*.
+2. **Web service:** on Render, *New → Blueprint* and pick this repo. `render.yaml` builds the `Dockerfile` (Python 3.12, non-root user), checks `/healthz`, and generates `SESSION_SECRET` and `CRON_SECRET`. Enter `DATABASE_URL`, `APP_URL` (the Render URL), and optionally `OPENAI_API_KEY`, `SMTP_USER`, `SMTP_PASSWORD`.
+3. **Reminders:** in GitHub → *Settings → Secrets and variables → Actions*, add variable `CARESYNC_URL` (the Render URL) and secret `CRON_SECRET` (same value as on Render). `.github/workflows/reminders.yml` then runs every 15 minutes.
+
+In production the API docs are disabled, cookies are `Secure; HttpOnly; SameSite=Strict`, HSTS is on, and every secret comes from the environment.

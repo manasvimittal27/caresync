@@ -1,0 +1,26 @@
+# Render Blueprint: New > Blueprint > pick this repo. Secrets marked sync:false are
+# entered in the Render dashboard; SESSION_SECRET and CRON_SECRET are generated.
+services:
+  - type: web
+    name: caresync
+    runtime: docker
+    plan: free
+    region: singapore
+    healthCheckPath: /healthz
+    envVars:
+      - key: APP_ENV
+        value: prod
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false

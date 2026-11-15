@@ -33,6 +33,7 @@ class Settings:
     cron_secret: str | None = None
     app_url: str = "http://localhost:8000"
     reminder_lead_minutes: int = 15
+    database_url: str | None = None
 
     @property
     def is_production(self) -> bool:
@@ -59,7 +60,7 @@ def load_settings() -> Settings:
     return Settings(
         app_env=app_env,
         session_secret=session_secret,
-        db_backend=os.getenv("DB_BACKEND", "firestore" if app_env == "prod" else "memory"),
+        db_backend=os.getenv("DB_BACKEND") or ("postgres" if os.getenv("DATABASE_URL") else "memory"),
         gcp_project=os.getenv("GCP_PROJECT") or os.getenv("GOOGLE_CLOUD_PROJECT"),
         default_timezone=os.getenv("DEFAULT_TIMEZONE", "Asia/Kolkata"),
         session_max_age_seconds=_int("SESSION_MAX_AGE_SECONDS", 12 * 60 * 60),
@@ -79,6 +80,7 @@ def load_settings() -> Settings:
         cron_secret=os.getenv("CRON_SECRET") or None,
         app_url=os.getenv("APP_URL", "http://localhost:8000").rstrip("/"),
         reminder_lead_minutes=_int("REMINDER_LEAD_MINUTES", 15),
+        database_url=os.getenv("DATABASE_URL") or None,
     )
 
 

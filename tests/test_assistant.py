@@ -302,13 +302,16 @@ def test_ai_provider_selection():
 
 
 def test_openai_errors_become_friendly_message():
-    import httpx
     import openai
+
+    class FakeAPIError(openai.APIError):
+        def __init__(self) -> None:
+            Exception.__init__(self, "connection failed")
 
     model = OpenAIAssistant("sk-test", "gpt-5.4-mini")
 
     def boom(**_kwargs):
-        raise openai.APIConnectionError(request=httpx.Request("POST", "https://api.openai.com/v1/responses"))
+        raise FakeAPIError()
 
     model._client.responses.create = boom
     with pytest.raises(AIUnavailableError):

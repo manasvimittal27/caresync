@@ -34,6 +34,12 @@ _DOCS_PATHS = ("/docs", "/openapi.json")
 
 
 def _build_repo(settings: Settings) -> Repository:
+    if settings.db_backend == "postgres":
+        from app.db.postgres import PostgresRepository
+
+        if not settings.database_url:
+            raise RuntimeError("DATABASE_URL must be set when DB_BACKEND=postgres")
+        return PostgresRepository(settings.database_url)
     if settings.db_backend == "firestore":
         from app.db.firestore import FirestoreRepository
 

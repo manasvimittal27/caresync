@@ -1,5 +1,6 @@
 """Shared fixtures: an app wired to an in-memory database and a controllable clock."""
 
+import os
 from datetime import UTC, datetime
 
 import pytest
@@ -42,9 +43,27 @@ def clock() -> FakeClock:
     return FakeClock()
 
 
+@pytest.fixture(scope="session")
+def _postgres_repo():
+    """Shared Postgres repository when TEST_DATABASE_URL is set (CI runs the suite on both backends)."""
+    url = os.getenv("TEST_DATABASE_URL")
+    if not url:
+        yield None
+        return
+    from app.db.postgres import PostgresRepository
+
+    pg = PostgresRepository(url)
+    yield pg
+    pg.close()
+
+
 @pytest.fixture
-def repo() -> InMemoryRepository:
-    return InMemoryRepository()
+def repo(_postgres_repo):
+    if _postgres_repo is None:
+        return InMemoryRepository()
+    with _postgres_repo._pool.connection() as conn:
+        conn.execute("truncate documents")
+    return _postgres_repo
 
 
 @pytest.fixture
